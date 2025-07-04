@@ -1,0 +1,79 @@
+services:
+  php:
+    platform: linux/amd64
+    container_name: phalvu-php
+    build:
+      context: .
+      dockerfile: ./docker/php-fpm/Dockerfile
+    volumes:
+      - ./api:/srv/app:rw,cached
+      - ./docker/.ssh:/root/.ssh:rw,cached
+    working_dir: /srv/app
+    ports:
+      - "9000:9000"
+      - "8000:8000"
+    depends_on:
+      - mysql
+      - mailer
+
+  node:
+    container_name: phalvu-node
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: ./docker/node/Dockerfile
+    entrypoint: /bin/sh
+    tty: true
+    volumes:
+      - ./web:/srv/app:rw,cached
+      - ./docker/.ssh:/root/.ssh:rw,cached
+    working_dir: /srv/app
+    ports:
+      - "3000:3000"
+      - "4173:4173"
+    depends_on:
+      - php
+
+  mysql:
+    image: mysql:5.7
+    platform: linux/amd64
+    container_name: phalvu-mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DB:-app}
+      MYSQL_USER: ${MYSQL_USER:-phalvu}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-!ChangeMe!}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-!ChangeMe!}
+    ports:
+      - '3306:3306'
+    volumes:
+      - phalvu_mysql:/var/lib/mysql:rw,cached
+
+  nginx:
+    container_name: phalvu-nginx
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./web/dist:/srv/app/dist:rw,cached
+      - ./api/public:/srv/app/public:rw,cached
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:rw,cached
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d:rw,cached
+      - ./docker/nginx/sites/:/etc/nginx/sites-available:rw,cached
+      - ./docker/nginx/ssl/localhost.key:/etc/ssl/localhost.key:rw,cached
+      - ./docker/nginx/ssl/localhost.crt:/etc/ssl/localhost.crt:rw,cached
+    depends_on:
+      - php
+      - node
+
+  mailer:
+    image: schickling/mailcatcher
+    container_name: phalvu-mailer
+    platform: linux/amd64
+    ports:
+      - "1025:1025"
+      - "1080:1080"
+
+volumes:
+  phalvu_mysql:

@@ -1,0 +1,7 @@
+###> macOS/filesystem ###
+.DS_Store
+###< macOS/filesystem ###
+
+###> jetbrains/ide ###
+.idea
+###< jetbrains/ide ###
